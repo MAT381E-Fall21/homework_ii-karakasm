@@ -1,35 +1,167 @@
 ---
 title: "MAT381E-Homework 2"
-author: "Gül İnan"
-date: "27/12/2021"
+author: "Mahmud Turab Karakaş"
+date: "`r format(Sys.Date(), '%B %e, %Y')`"
 output:
-  pdf_document: default
   html_document: default
+  pdf_document: default
 ---
 
-Visit the website https://covid19.saglik.gov.tr/ which gives weekly official statistics on Covid-19 cases in
-our country. 
 
-1. The front web page involves an interactive map titled "İllere göre haftalık vaka sayısı (100 binde)", where a static version of it is also given below.
-
-```{r, echo=F, fig.align='center', out.width="60%", fig.cap = "İllere göre haftalık vaka sayısı (100 binde)"}
-knitr::include_graphics("images/illere_gore_vaka.png")
+**Necessary** packages included in the project.  
+```{r, warning=FALSE, message=FALSE}
+library(rvest)
+library(sf)
+library(dplyr)
+library(leaflet)
+library(htmlwidgets)
 ```
 
-1. Scrape the data right below this interactive map, which is available as a table at https://covid19.saglik.gov.tr/,  
-via `R package rvest`.
-2. Use this data to reproduce this **map** via `R package leaflet`.  
-   2.1. You can use the `shape files` which we have used in lectures.  
-   2.2. In the map there seems that there are five different gray colors depending on the confirmed case count value: 1) 0-51, 2) 52-150, 3) 151-200, 4) 201-250, and 5) 250+.  This implies that you have to find 5 different hex colors in gray tone in an ascending form (from light to dark) to associate it count value.
-   2.3. In map 1, you do not need to fill text boxes available in each province and pop-window backgrounds in green color. It requires some HTML skills. 
-   2.4. You do not have to put the plot titles. It requires some HTML skills.  
-   2.5. When merging spatial data files with scraped data according to provinces, be careful. Double-check the name of provinces. If you are doing something wrong you can understand it by checking the locations of the provinces on map.  
-   2.6. Save the map as a `.html` file by `htmlwidgets::saveWidget`.   
-3. Feel free to improve the readability of the map.
-4. Since the websites are being updated regularly, it is not of importance which data you have used in your homework as long as it belongs to a recent one.
+
+Files with **.zip** extension are extracted into files.  
+```{r, warning=FALSE, message=FALSE}
+#unzip the contents in './data/turkey_administrativelevels0_1_2.zip' and save unzipped content in './data/turkey_administrativelevels0_1_2'
+unzip(zipfile = "./data/zip/turkey_administrativelevels0_1_2.zip", exdir = "./data/turkey_administrativelevels0_1_2")
+
+#unzip the contents in './data/turkey_centeralpoints_1_2.zip' and save unzipped content in './data/turkey_centralpoints_1_2'
+unzip(zipfile = "./data/zip/turkey_centeralpoints_1_2.zip", exdir = "./data/turkey_centralpoints_1_2")
+```
+
+Data with **sf structure** was obtained with the **st_read** function.  
+```{r, warning=FALSE, message=FALSE}
+tur_polbnda_adm1_sf= st_read("data/turkey_administrativelevels0_1_2/tur_polbnda_adm1.shp")
+tur_pntcntr_adm1_sf = st_read("data/turkey_centralpoints_1_2/tur_pntcntr_adm1.shp")
+```
+
+The web page with the specified url has been captured for **Web Scraping** process.  
+```{r, warning=FALSE, message=FALSE}
+url = "https://covid19.saglik.gov.tr/"
+
+html = read_html(url)
+```
 
 
-**Cautionary notes**: 
-1) Homework assignments are individual-based studies. For that reason, students are expected to do homework assignments by themselves (**I will also check your commit history to see the evolution of the homework over time**). Homework assignments will not be accepted after deadline. There is **NO** make-up for missed homework.
-2) You should clone `Homework II-R Project` on [GitHub Classroom of MAT381E-Fall21](https://github.com/MAT381E-Fall21) organization into your local computer, do the changes as needed, delete all the files you have not used to produce your homework, and finally commit and push all the required files (including `.Rmd` files) by
-January 10, 2022 18:00 via [GitHub Classroom of MAT381E-Fall21](https://github.com/MAT381E-Fall21) organization.
+Data were obtained from the table on the web page with the help of various functions.  
+```{r, warning=FALSE, message=FALSE}
+table_data = html %>% 
+              html_elements("table") %>%
+                .[[1]] %>%
+                  html_table()
+```
+
+
+A conversion operation was performed for a variable in the data named **table_data**.  
+```{r, warning=FALSE, message=FALSE}
+#The variable named Sayı has been converted from character data type to numeric data type.
+table_data$Sayı = as.numeric(gsub(",",".", table_data$Sayı))
+```
+
+
+
+A column named **Category** has been added to **table_data**.  
+```{r, warning=FALSE, message=FALSE}
+#The column named Category, which has an ordered factor structure,
+# is filled with values corresponding to the specified conditions.
+table_data = table_data %>%
+                      mutate(Category = case_when(0<=Sayı & Sayı<=51 ~ "1",
+                                                  51<Sayı & Sayı<=150 ~ "2",
+                                                  150<Sayı & Sayı<=200 ~ "3",
+                                                  200<Sayı & Sayı<=250 ~ "4",
+                                                  250<Sayı ~ "5")) %>%
+                        mutate(Category = factor(Category,
+                                                 levels=c("1",
+                                                          "2",
+                                                          "3",
+                                                          "4",
+                                                          "5"),
+                                                 ordered = TRUE))
+```
+
+
+
+A sub-data including the names of the provinces in Turkey and the geometry features of these provinces was created.  
+```{r, warning=FALSE, message=FALSE}
+#The variable containing the names of the provinces has been renamed to "İl Adı".
+geometry_of_provinces = tur_polbnda_adm1_sf %>%
+                          select(adm1_tr) %>%
+                            rename("İl Adı" = "adm1_tr")
+```
+
+
+Necessary changes have been made so that the names of the provinces in the **table_data** and **geometry_of_provinces** are in the same order.  
+```{r, warning=FALSE, message=FALSE}
+table_data[c(48,49,50,51,68,69,70,71,72),] = table_data[c(51,48,49,50,71,68,69,72,70),]
+```
+
+
+The spelling of city names in **table_data** and **geometry_of_provinces** has been made the same.  
+```{r, warning=FALSE, message=FALSE}
+geometry_of_provinces[,"İl Adı"] = table_data[,"İl Adı"]
+```
+
+
+By merging the **table_data** and **geometry_of_provinces**, the data to be used in the **visualization** of the map is obtained.  
+```{r, warning=FALSE, message=FALSE}
+map_data = merge(geometry_of_provinces,table_data)
+```
+
+
+**Labels** that will appear when hovering over provinces on the map have been created.  
+```{r, warning=FALSE, message=FALSE}
+labels <-  sprintf("<strong>%s</strong><br/>
+                    <strong> %s</strong>", map_data$"İl Adı", map_data$Sayı) %>%
+                    lapply(htmltools::HTML)
+```
+
+
+A sequential color palette was created with colors corresponding to the specified levels.    
+```{r, warning=FALSE, message=FALSE}
+#Colors are taken from the map requested from us for each level specified with the help of the colorzilla plugin in Chrome.
+pal_col = colorFactor(palette = c("#DAD9D7","#D1D0CE","#9C9C9C","#858585","#7A7878"), levels = c("1","2","3","4","5") ,ordered = TRUE)
+```
+
+
+A map was created using the data named **map_data**.  
+```{r, warning=FALSE, message=FALSE}
+map = map_data %>%
+         leaflet() %>%
+          addPolygons(color = "white",
+                      weight = 1,
+                      fillColor = ~pal_col(Category),
+                      fillOpacity = 1,
+                      smoothFactor = 1,
+                      label = labels,
+                      labelOptions = labelOptions(style = list("color" = "white", #for popup label
+                                                               "background-color" = "#1B888C",
+                                                               "border-color" = "#1B888C",
+                                                               "padding" = "20px"),
+                                                  textsize = "15px",
+                                                  direction = "auto"),
+                      highlight = highlightOptions(weight = 1,
+                                                   fillColor = "#0E5C59",
+                                                   bringToFront = TRUE)) %>% 
+            addLabelOnlyMarkers(lng = tur_pntcntr_adm1_sf$longitude,
+                                lat = tur_pntcntr_adm1_sf$latitude,
+                                label = ~Sayı,
+                                labelOptions = labelOptions(noHide = T, 
+                                                            direction = "center",
+                                                            textsize = "9px",
+                                                            style = list("color" = "white",
+                                                                         "background-color" = "#0E5C59",
+                                                                         "border-color" = "#0E5C59",
+                                                                         "border-radius" = "35%",
+                                                                         "padding" = "0px"))) %>%
+              addLegend(position = "bottomright",
+                        pal = pal_col,  
+                        values = ~ Category,  
+                        title = 'İllere göre Haftalık Vaka Sayısı (100 binde)') 
+
+
+map
+```
+
+
+```{r}
+saveWidget(map, file="map.html")
+```
+
