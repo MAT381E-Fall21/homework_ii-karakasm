@@ -8,13 +8,33 @@ output:
 ---
 
 
+```{css, echo=FALSE}
+h1, h2, h3, h4, caption {
+  text-align: center;
+}
+
+table {
+  margin: auto;
+  border-top: 1px solid #666;
+  border-bottom: 1px solid #666;
+}
+table thead th { border-bottom: 1px solid #ddd; }
+th, td { padding: 7px; }
+thead, tfoot, tr:nth-child(even) { background: #eee; }
+
+```
+
+
+
 **Necessary** packages included in the project.  
 ```{r, warning=FALSE, message=FALSE}
 library(rvest)
 library(sf)
 library(dplyr)
+library(kableExtra)
 library(leaflet)
 library(htmlwidgets)
+library(htmltools)
 ```
 
 
@@ -28,10 +48,42 @@ unzip(zipfile = "./data/zip/turkey_centeralpoints_1_2.zip", exdir = "./data/turk
 ```
 
 Data with **sf structure** was obtained with the **st_read** function.  
-```{r, warning=FALSE, message=FALSE}
+```{r, warning=FALSE, message=FALSE, results='hide'}
 tur_polbnda_adm1_sf= st_read("data/turkey_administrativelevels0_1_2/tur_polbnda_adm1.shp")
 tur_pntcntr_adm1_sf = st_read("data/turkey_centralpoints_1_2/tur_pntcntr_adm1.shp")
 ```
+
+Here is the first sf data named  **tur_polbnda_adm1_sf**.  
+```{r, warning=FALSE, message=FALSE}
+tur_polbnda_adm1_sf %>%
+  select("İl Adı"=adm1_tr, "Shape Leng" =Shape_Leng, "Shape Area"=Shape_Area,"Geometry"=geometry) %>%
+     kbl(caption = "tur_polbnda_adm1_sf", align = "cccc")%>%
+        kable_styling(bootstrap_options = c("striped",
+                                            "hover",
+                                            "condensed",
+                                            "responsive"), 
+                      font_size = 12) %>%
+          scroll_box(width = "500px", height = "250px") 
+                  
+```
+
+
+
+
+Here is the second sf data named **tur_pntcntr_adm1_sf**.  
+```{r, warning=FALSE, message=FALSE}
+tur_pntcntr_adm1_sf %>%
+  select("İl Adı"=adm1_tr, "Latitude"=latitude, "Longitude"=longitude  ,Geometry="geometry") %>%
+     kbl(caption = "tur_pntcntr_adm1_sf", align="cccc")%>%
+        kable_styling(bootstrap_options = c("striped",
+                                            "hover",
+                                            "condensed",
+                                            "responsive"),
+                      font_size = 12) %>%
+          scroll_box(width = "500px", height = "250px")
+```
+
+
 
 The web page with the specified url has been captured for **Web Scraping** process.  
 ```{r, warning=FALSE, message=FALSE}
@@ -50,6 +102,20 @@ table_data = html %>%
 ```
 
 
+Here is the **table_data** showing the weekly number of cases per 100 thousand by provinces.
+```{r, warning=FALSE, message=FALSE}
+table_data %>%
+  kbl(caption="İllere Göre Haftalık Vaka Sayısı (100 binde)", align = "cc") %>%
+    kable_styling(bootstrap_options = c("striped",
+                                        "hover",
+                                        "condensed",
+                                        "responsive"),
+                  font_size = 15) %>%
+      scroll_box(width = "500px", height = "250px")
+```
+
+
+
 A conversion operation was performed for a variable in the data named **table_data**.  
 ```{r, warning=FALSE, message=FALSE}
 #The variable named Sayı has been converted from character data type to numeric data type.
@@ -58,7 +124,7 @@ table_data$Sayı = as.numeric(gsub(",",".", table_data$Sayı))
 
 
 
-A column named **Category** has been added to **table_data**.  
+A column named **Category** has been added to **table_data**.   
 ```{r, warning=FALSE, message=FALSE}
 #The column named Category, which has an ordered factor structure,
 # is filled with values corresponding to the specified conditions.
@@ -79,6 +145,22 @@ table_data = table_data %>%
 
 
 
+This is the final version of the **table_data**.  
+```{r, warning=FALSE, message=FALSE}
+table_data %>%
+  kbl(caption="İllere Göre Haftalık Vaka Sayısı (100 binde)", align = "ccc") %>%
+    kable_styling(bootstrap_options = c("striped",
+                                        "hover",
+                                        "condensed",
+                                        "responsive"),
+                  font_size = 15) %>%
+      scroll_box(width = "500px", height = "250px") 
+```
+
+
+
+
+
 A sub-data including the names of the provinces in Turkey and the geometry features of these provinces was created.  
 ```{r, warning=FALSE, message=FALSE}
 #The variable containing the names of the provinces has been renamed to "İl Adı".
@@ -86,6 +168,23 @@ geometry_of_provinces = tur_polbnda_adm1_sf %>%
                           select(adm1_tr) %>%
                             rename("İl Adı" = "adm1_tr")
 ```
+
+```{r, warning=FALSE, message=FALSE, echo=FALSE}
+geometry_of_provinces %>%
+  head() %>%
+    kbl(caption="geometry_of_provinces", align = "ccc") %>%
+      kable_styling(bootstrap_options = c("striped",
+                                          "hover",
+                                          "condensed",
+                                          "responsive"),
+                    font_size = 12,
+                    full_width = F,
+                    position = "center") 
+```
+
+
+
+
 
 
 Necessary changes have been made so that the names of the provinces in the **table_data** and **geometry_of_provinces** are in the same order.  
@@ -105,6 +204,23 @@ By merging the **table_data** and **geometry_of_provinces**, the data to be used
 map_data = merge(geometry_of_provinces,table_data)
 ```
 
+```{r, warning=FALSE, message=FALSE}
+map_data %>%
+  kbl(caption="map_data",align="cccc") %>%
+    kable_styling(bootstrap_options = c("striped",
+                                         "hover",
+                                         "condensed",
+                                         "responsive"),
+                  font_size = 12) %>%
+    scroll_box(width = "500px", height = "250px")
+```
+
+
+
+
+
+
+
 
 **Labels** that will appear when hovering over provinces on the map have been created.  
 ```{r, warning=FALSE, message=FALSE}
@@ -117,7 +233,45 @@ labels <-  sprintf("<strong>%s</strong><br/>
 A sequential color palette was created with colors corresponding to the specified levels.    
 ```{r, warning=FALSE, message=FALSE}
 #Colors are taken from the map requested from us for each level specified with the help of the colorzilla plugin in Chrome.
-pal_col = colorFactor(palette = c("#DAD9D7","#D1D0CE","#9C9C9C","#858585","#7A7878"), levels = c("1","2","3","4","5") ,ordered = TRUE)
+pal_col = colorFactor(palette = c("#DAD9D7",
+                                  "#D1D0CE",
+                                  "#9C9C9C",
+                                  "#858585",
+                                  "#7A7878"), 
+                      domain = map_data$Category,
+                      levels = c("1",
+                                 "2",
+                                 "3",
+                                 "4",
+                                 "5"),
+                      ordered = TRUE)
+```
+
+
+
+The necessary actions have been taken to add a **title** to the map.  
+```{r, warning=FALSE, message=FALSE}
+tag.map.title <- tags$style(HTML("
+  .leaflet-control.map-title { 
+    transform: translate(-50%,20%);
+    position: fixed !important;
+    left: 50%;
+    text-align: center;
+    padding-left: 70px; 
+    padding-right: 70px; 
+    background: #199F9B;
+    color:white;
+    font-weight: bold;
+    font-size: 17px;
+  }
+"))
+
+
+title <- tags$div(
+  tag.map.title, HTML("İllere Göre Haftalık Vaka Sayısı (100 binde) </br>
+                      11-17 Aralık 2021")
+)  
+
 ```
 
 
@@ -151,17 +305,31 @@ map = map_data %>%
                                                                          "border-color" = "#0E5C59",
                                                                          "border-radius" = "35%",
                                                                          "padding" = "0px"))) %>%
-              addLegend(position = "bottomright",
-                        pal = pal_col,  
-                        values = ~ Category,  
-                        title = 'İllere göre Haftalık Vaka Sayısı (100 binde)') 
-
+                addControl(title, position = "topleft", className="map-title") 
 
 map
 ```
 
 
+**map** is saved in the file named **map.html**.  
 ```{r}
-saveWidget(map, file="map.html")
+saveWidget(map, file="map.html",  selfcontained = FALSE)
 ```
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+`
