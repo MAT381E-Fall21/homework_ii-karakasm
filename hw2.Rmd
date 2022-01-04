@@ -37,16 +37,6 @@ library(htmlwidgets)
 library(htmltools)
 ```
 
-
-Files with **.zip** extension are extracted into files.  
-```{r, warning=FALSE, message=FALSE}
-#unzip the contents in './data/turkey_administrativelevels0_1_2.zip' and save unzipped content in './data/turkey_administrativelevels0_1_2'
-unzip(zipfile = "./data/zip/turkey_administrativelevels0_1_2.zip", exdir = "./data/turkey_administrativelevels0_1_2")
-
-#unzip the contents in './data/turkey_centeralpoints_1_2.zip' and save unzipped content in './data/turkey_centralpoints_1_2'
-unzip(zipfile = "./data/zip/turkey_centeralpoints_1_2.zip", exdir = "./data/turkey_centralpoints_1_2")
-```
-
 Data with **sf structure** was obtained with the **st_read** function.  
 ```{r, warning=FALSE, message=FALSE, results='hide'}
 tur_polbnda_adm1_sf= st_read("data/turkey_administrativelevels0_1_2/tur_polbnda_adm1.shp")
